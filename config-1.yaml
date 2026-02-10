@@ -1,0 +1,161 @@
+# ═══════════════════════════════════════════════════════════════
+# Multi-AI Research Orchestrator — Configuration
+# ═══════════════════════════════════════════════════════════════
+
+# ── 출력 설정 ──
+output_dir: "./research_output"
+language: "ko"  # ko | en
+
+# ── 연구 모드 (deep research) ──
+# true로 설정하면 각 AI의 심층 연구 기능을 사용합니다.
+# API 키가 필요합니다.
+deep_research: false
+
+# ── 토론 라운드 수 ──
+debate_rounds: 3          # 교차 토론 라운드 수 (2~5)
+max_extra_rounds: 2       # 미합의 항목 추가 토론 최대 라운드
+
+# ── 논점 (자동 생성 + 사용자 추가 가능) ──
+# 비워두면 AI가 자동으로 핵심 논점을 도출합니다.
+custom_topics: []
+
+# ── AI 프로바이더 설정 ──
+providers:
+  claude:
+    enabled: true
+    # API 모드: api | cli
+    mode: "api"
+    api_key: "${ANTHROPIC_API_KEY}"
+    model: "claude-sonnet-4-5-20250929"
+    # 심층 연구 시 사용할 모델 (extended thinking + web search)
+    research_model: "claude-sonnet-4-5-20250929"
+    max_tokens: 16000
+    role: "설계 전문가 — 구조화된 분석과 비판적 사고에 강점"
+
+  gemini:
+    enabled: true
+    mode: "api"
+    api_key: "${GOOGLE_API_KEY}"
+    model: "gemini-2.5-pro"
+    # 심층 연구 에이전트
+    research_agent: "deep-research-pro-preview-12-2025"
+    max_tokens: 16000
+    role: "조사 전문가 — 웹 검색과 최신 기술 동향 분석에 강점"
+
+  gpt:
+    enabled: true
+    mode: "api"
+    api_key: "${OPENAI_API_KEY}"
+    model: "gpt-4.1"
+    # 심층 연구 모델
+    research_model: "o4-mini-deep-research-2025-06-26"
+    max_tokens: 16000
+    role: "구현 전문가 — 실현 가능성 평가와 현실적 접근에 강점"
+
+# ── CLI 폴백 설정 (API 키 없을 때) ──
+cli_fallback:
+  claude: "claude -p"
+  gemini: "gemini -p"
+  codex: "codex exec"
+
+# ── 프롬프트 템플릿 ──
+prompts:
+  # 질문 생성 프롬프트
+  clarify: |
+    너는 {role}이다.
+    사용자가 다음 주제에 대해 연구를 의뢰했다:
+
+    "{query}"
+
+    이 연구를 가장 효과적으로 수행하기 위해 사용자에게 물어봐야 할
+    핵심 질문 3~5개를 만들어라.
+    각 질문은 연구 방향을 구체화하는 데 도움이 되어야 한다.
+
+    JSON 형식으로 응답해라:
+    {{"questions": ["질문1", "질문2", ...]}}
+
+  # 독립 조사 프롬프트
+  research: |
+    너는 {role}이다.
+
+    ## 연구 주제
+    {query}
+
+    ## 추가 맥락
+    {context}
+
+    ## 요청
+    이 주제에 대해 심층적으로 조사하고 분석해라.
+    다음을 포함해야 한다:
+    1. 현황 분석
+    2. 핵심 발견사항 (근거 포함)
+    3. 기회와 위험 요소
+    4. 구체적 권장사항
+
+    구조화된 보고서 형태로 작성해라.
+    모든 주장에는 근거를 포함해라.
+
+  # 비평 프롬프트
+  critique: |
+    너는 {role}이다.
+
+    다른 AI들이 작성한 연구 결과를 검토해라.
+
+    {other_reports}
+
+    너의 연구 결과:
+    {own_report}
+
+    ## 요청
+    아래 형식으로 각 논점에 대해 비평해라:
+
+    ### 논점 N: (제목)
+    - **다른 AI들의 주장 요약**
+    - **내 의견**: [동의] / [부분 동의] / [반대] / [대안 제시]
+    - **근거**: (구체적 근거)
+
+    최소 5개 이상의 논점을 다뤄라.
+    추가 논점이 있으면 자유롭게 추가해라.
+    근거 없는 의견은 쓰지 마라.
+
+  # 반론/수용 프롬프트
+  respond: |
+    너는 {role}이다.
+
+    네 연구에 대해 다른 AI들이 아래 비평을 제출했다:
+
+    {critiques}
+
+    ## 요청
+    각 논점에 대해 응답해라:
+
+    ### 논점 N: (제목)
+    **받은 비평 요약**:
+    **응답**: [수용] / [부분 수용] / [반박]
+    - 수용: 기존 의견을 어떻게 수정하는지
+    - 반박: 왜 기존 의견이 여전히 타당한지 (추가 근거)
+    - 부분 수용: 어디까지 수용하고 어디는 유지하는지
+
+    모든 논점에 빠짐없이 응답해라.
+
+  # 합의 도출 프롬프트
+  consensus: |
+    3개 AI가 {rounds}라운드에 걸쳐 토론한 결과를 분석해라.
+
+    ## 전체 토론 기록
+    {debate_history}
+
+    ## 요청
+    두 섹션으로 정리해라:
+
+    ### PART 1: 합의 사항 (CONSENSUS)
+    논점별로:
+    - **결론**: 합의된 결정
+    - **합의 수준**: ⭐⭐⭐ 전원 동의 / ⭐⭐ 다수 동의 / ⭐ 약한 합의
+    - **근거 요약**
+    - **조건/유보사항**
+
+    ### PART 2: 미합의 사항 (UNRESOLVED)
+    - **대립하는 입장들**: 각 AI의 주장과 근거
+    - **합의 실패 이유**
+    - **추천**: 잠정 추천안
